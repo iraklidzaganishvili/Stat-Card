@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dynamic Radar Chart Comparison</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      background: #f4f4f4;
+    }
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .player-section {
+      margin-bottom: 30px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+    }
+    .inputs {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-top: 10px;
+    }
+    .inputs label {
+      display: flex;
+      flex-direction: column;
+      font-weight: bold;
+    }
+    button {
+      margin: 5px 10px 10px 0;
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #radarChart {
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Radar Chart Player Comparison</h2>
+    <div id="players"></div>
+    <button onclick="addPlayer()">Add Player</button>
+    <button onclick="downloadChart()">Download Chart as Image</button>
+    <button onclick="exportData()">Export Data</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    <button onclick="document.getElementById('importFile').click()">Import Data</button>
+    <canvas id="radarChart" width="400" height="400"></canvas>
+  </div>
+
+  <script>
+    const labels = ["PvP", "Bridging", "Clutching Games", "Gamesense", "Bed Breaking", "Movement", "Comms"];
+    let playerCount = 0;
+    const colors = [
+      'rgb(54, 162, 235)', 'rgb(255, 99, 132)', 'rgb(255, 206, 86)',
+      'rgb(75, 192, 192)', 'rgb(153, 102, 255)', 'rgb(255, 159, 64)',
+      'rgb(201, 203, 207)'
+    ];
+    
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    const radarChart = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: labels,
+        datasets: []
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: "Radar Chart Comparison"
+          },
+          legend: {
+            display: true
+          }
+        },
+        scales: {
+          r: {
+            min: 0,
+            max: 10,
+            ticks: {
+              stepSize: 1
+            }
+          }
+        }
+      }
+    });
+
+    function addPlayer(data = null) {
+      playerCount++;
+      const playerDiv = document.createElement('div');
+      playerDiv.className = 'player-section';
+      playerDiv.id = `player${playerCount}`;
+      const ignValue = data ? data.ign : `Player${playerCount}`;
+      const inputsHtml = labels.map(label => {
+        const value = data ? data.stats[label] : 5;
+        return `
+          <label>${label}
+            <input type="number" min="0" max="10" value="${value}" id="${label}${playerCount}" oninput="updateChart()">
+          </label>
+        `;
+      }).join('');
+      playerDiv.innerHTML = `
+        <h3>Player ${playerCount}</h3>
+        <div class="inputs">
+          <label>IGN
+            <input type="text" id="ign${playerCount}" value="${ignValue}" oninput="updateChart()">
+          </label>
+          ${inputsHtml}
+        </div>
+      `;
+      document.getElementById('players').appendChild(playerDiv);
+      updateChart();
+    }
+
+    function updateChart() {
+      radarChart.data.datasets = [];
+      for (let i = 1; i <= playerCount; i++) {
+        const ignInput = document.getElementById(`ign${i}`);
+        if (!ignInput) continue;
+        const ign = ignInput.value;
+        const stats = labels.map(label => {
+          const input = document.getElementById(`${label}${i}`);
+          return input ? parseFloat(input.value) : 0;
+        });
+        const color = colors[(i - 1) % colors.length];
+        radarChart.data.datasets.push({
+          label: ign,
+          data: stats,
+          fill: true,
+          borderColor: color,
+          backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.2)'),
+          pointBackgroundColor: color
+        });
+      }
+      radarChart.update();
+    }
+
+    function downloadChart() {
+      const link = document.createElement('a');
+      link.download = 'radar_chart_comparison.png';
+      link.href = radarChart.toBase64Image();
+      link.click();
+    }
+
+    function exportData() {
+      const data = [];
+      for (let i = 1; i <= playerCount; i++) {
+        const ignInput = document.getElementById(`ign${i}`);
+        if (!ignInput) continue;
+        const playerData = {
+          ign: ignInput.value,
+          stats: {}
+        };
+        labels.forEach(label => {
+          const input = document.getElementById(`${label}${i}`);
+          if (input) {
+            playerData.stats[label] = parseFloat(input.value);
+          }
+        });
+        data.push(playerData);
+      }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'players_data.json';
+      link.click();
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const jsonData = JSON.parse(e.target.result);
+        document.getElementById('players').innerHTML = '';
+        playerCount = 0;
+        jsonData.forEach(player => addPlayer(player));
+      };
+      reader.readAsText(file);
+    }
+
+    // Initialize with one player
+    addPlayer();
+  </script>
+</body>
+</html>
