@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>Dynamic Radar Chart Comparison</title>
@@ -10,42 +11,49 @@
       padding: 30px;
       background: #f4f4f4;
     }
+
     .container {
       max-width: 1000px;
       margin: auto;
       background: white;
       padding: 20px;
       border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     }
+
     .player-section {
       margin-bottom: 30px;
       padding: 10px;
       border: 1px solid #ddd;
       border-radius: 6px;
     }
+
     .inputs {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 15px;
       margin-top: 10px;
     }
+
     .inputs label {
       display: flex;
       flex-direction: column;
       font-weight: bold;
     }
+
     button {
       margin: 5px 10px 10px 0;
       padding: 10px 15px;
       font-size: 16px;
       cursor: pointer;
     }
+
     #radarChart {
       margin-top: 30px;
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <h2>Radar Chart Player Comparison</h2>
@@ -66,7 +74,7 @@
       'rgb(75, 192, 192)', 'rgb(153, 102, 255)', 'rgb(255, 159, 64)',
       'rgb(201, 203, 207)'
     ];
-    
+
     const ctx = document.getElementById('radarChart').getContext('2d');
     const radarChart = new Chart(ctx, {
       type: 'radar',
@@ -125,7 +133,8 @@
     }
 
     function updateChart() {
-      radarChart.data.datasets = [];
+      const newDatasets = [];
+
       for (let i = 1; i <= playerCount; i++) {
         const ignInput = document.getElementById(`ign${i}`);
         if (!ignInput) continue;
@@ -135,17 +144,31 @@
           return input ? parseFloat(input.value) : 0;
         });
         const color = colors[(i - 1) % colors.length];
-        radarChart.data.datasets.push({
-          label: ign,
-          data: stats,
-          fill: true,
-          borderColor: color,
-          backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.2)'),
-          pointBackgroundColor: color
-        });
+
+        const existingDatasetIndex = radarChart.data.datasets.findIndex(ds => ds.label === ign);
+        if (existingDatasetIndex !== -1) {
+          // Update existing dataset
+          radarChart.data.datasets[existingDatasetIndex].data = stats;
+        } else {
+          // Add new dataset
+          radarChart.data.datasets.push({
+            label: ign,
+            data: stats,
+            fill: true,
+            borderColor: color,
+            backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.2)'),
+            pointBackgroundColor: color
+          });
+        }
+
+        newDatasets.push(ign);
       }
+
+      // Remove any datasets that no longer exist in the input
+      radarChart.data.datasets = radarChart.data.datasets.filter(ds => newDatasets.includes(ds.label));
       radarChart.update();
     }
+
 
     function downloadChart() {
       const link = document.createElement('a');
@@ -182,7 +205,7 @@
       const file = event.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = function(e) {
+      reader.onload = function (e) {
         const jsonData = JSON.parse(e.target.result);
         document.getElementById('players').innerHTML = '';
         playerCount = 0;
@@ -195,4 +218,5 @@
     addPlayer();
   </script>
 </body>
+
 </html>
